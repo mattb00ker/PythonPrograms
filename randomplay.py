@@ -1,0 +1,3 @@
+import random
+for roll in range(1,10):
+	print random.randint(1,6)

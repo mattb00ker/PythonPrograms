@@ -1,0 +1,50 @@
+Traceback (most recent call last):
+  File "pymaze.py", line 317, in <module>
+    while MazeGame(Maze.generate(width, height)).play(): pass
+  File "pymaze.py", line 281, in play
+    console.display(str(self.maze))
+  File "/Users/mattbooker/Documents/console.py", line 65, in display
+    return _display(text)
+  File "/Users/mattbooker/Documents/console.py", line 49, in _display
+    window.addstr(0, 0, text)
+error: addstr() returned ERR
+Traceback (most recent call last):
+  File "pymaze.py", line 317, in <module>
+    while MazeGame(Maze.generate(width, height)).play(): pass
+  File "pymaze.py", line 281, in play
+    console.display(str(self.maze))
+  File "/Users/mattbooker/Documents/console.py", line 65, in display
+    return _display(text)
+  File "/Users/mattbooker/Documents/console.py", line 49, in _display
+    window.addstr(0, 0, text)
+error: addstr() returned ERR
+Traceback (most recent call last):
+  File "pymaze.py", line 317, in <module>
+    while MazeGame(Maze.generate(width, height)).play(): pass
+  File "pymaze.py", line 281, in play
+    console.display(str(self.maze))
+  File "/Users/mattbooker/Documents/console.py", line 65, in display
+    return _display(text)
+  File "/Users/mattbooker/Documents/console.py", line 49, in _display
+    window.addstr(0, 0, text)
+error: addstr() returned ERR
+Traceback (most recent call last):
+  File "pymaze.py", line 317, in <module>
+    while MazeGame(Maze.generate(width, height)).play(): pass
+  File "pymaze.py", line 281, in play
+    console.display(str(self.maze))
+  File "/Users/mattbooker/Documents/console.py", line 65, in display
+    return _display(text)
+  File "/Users/mattbooker/Documents/console.py", line 49, in _display
+    window.addstr(0, 0, text)
+error: addstr() returned ERR
+Traceback (most recent call last):
+  File "pymaze.py", line 317, in <module>
+    while MazeGame(Maze.generate(width, height)).play(): pass
+  File "pymaze.py", line 281, in play
+    console.display(str(self.maze))
+  File "/Users/mattbooker/Documents/console.py", line 65, in display
+    return _display(text)
+  File "/Users/mattbooker/Documents/console.py", line 49, in _display
+    window.addstr(0, 0, text)
+error: addstr() returned ERR
