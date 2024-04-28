@@ -8,15 +8,15 @@ def showBoard():
     print(board[2])
 
 def xTurn():
-    col = input("it's X's turn, which column?")
-    row = input("and which row?")
-    board[int(row)][int(col)] = "x"
+    col = int(input("It's X's turn, which column?"))
+    row = int(input("and which row?"))
+    board[row][col] = "x"
     checkForWin("x")
 
 def yTurn():
-    col = input("it's Y's turn, which column?")
-    row = input("and which row?")
-    board[int(row)][int(col)] = "y"
+    col = int(input("It's Y's turn, which column?"))
+    row = int(input("and which row?"))
+    board[row][col] = "y"
     checkForWin("y")
 
 def checkForWin(winner):
