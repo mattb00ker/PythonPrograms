@@ -30,3 +30,18 @@ class Character():
 class Enemy(Character):
     def __init__(self, char_name, char_description):
         super().__init__(char_name, char_description)
+        self.weakness = None
+    
+    def get_weakness(self):
+        return self.weakness 
+    
+    def set_weakness(self, weakness):
+        self.weakness = weakness
+    
+    def fight(self, combat_item):
+        if combat_item == self.weakness:
+            print("You fend " + self.name + " off with the " + combat_item )
+            return True
+        else:
+            print(self.name + " crushes you, puny adventurer")
+            return False
