@@ -1,10 +1,8 @@
-def evennumbers(num):
-    print(num)
-    if num % 2 !=0:
-        print("the number needs to be even")
-    elif num == 2:
-        return num
-    else:
-        return evennumbers(num-2)
-    
-evennumbers(101)
+def recursive_factorial(n):
+  if n == 1:
+     return n
+  else:
+     return n*recursive_factorial(n-1)
+
+number = int(input("User Input : "))
+print("The factorial of", number, "is", recursive_factorial(number))

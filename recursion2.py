@@ -1,8 +1,14 @@
-def Fibon(idx):
-    if idx <= 1:
-        return idx
+def get_to_zero(number, count):
+    print(number, count)
+    if number > 0:
+        number = number - 1
+        count = count + 1
+        # print("count",count, "number", number)
+        get_to_zero(number, count)
     else:
-        return Fibon(idx-1)+Fibon(idx-2)
-    
+        print(count)
+        return count
 
-print(Fibon(39))
+count = get_to_zero(7, 0)
+
+print(count)
