@@ -1,75 +1,41 @@
 import random
 
-# ========================================
-# CONFIGURATION AND HELPER STRUCTURES
-# ========================================
-
+# ======================================
+# CONSTANTS & HELPERS
+# ======================================
 RANK_ORDER = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
-# Build a dictionary to compare ranks by index
 RANK_VALUE = {rank: i for i, rank in enumerate(RANK_ORDER)}
 
 def get_rank(card: str) -> str:
-    """
-    Return just the rank portion, e.g. '10' from '10H', or '7' from '7S'.
-    """
     if card.startswith('10'):
         return '10'
     return card[:-1]
 
 def top_effective_rank(discard_pile):
     """
-    Determine the rank that matters for ascending-order checks.
-    - Ignore 8s on top (they're 'invisible').
-    - If the pile is empty, treat top rank as '2' (lowest).
+    Return the rank we compare against, ignoring '8' on top.
+    If pile empty, treat as '2'.
     """
     if not discard_pile:
-        return '2'  # If there's no card, treat baseline as '2' (lowest)
-    
-    # Scan from top down for the first non-8 card
+        return '2'
     for card in reversed(discard_pile):
-        rank = get_rank(card)
-        if rank != '8':
-            return rank
-    # If the entire pile is 8s, effectively treat as '2'
-    return '2'
-
-def can_play(current_rank, test_rank, nine_as_higher=True):
-    """
-    Check if test_rank is >= current_rank in ascending order,
-    considering the special '9' behavior (which can act higher or lower).
-    """
-    # If it's '2', always allowed (but the effect sets the next rank to '2' afterward)
-    if test_rank == '2':
-        return True
-
-    # 8 is invisible, also always allowed for now
-    if test_rank == '8':
-        return True
-
-    # 9 can be chosen to act as higher or lower
-    if test_rank == '9':
-        if nine_as_higher:
-            return RANK_VALUE['9'] >= RANK_VALUE[current_rank]
-        else:
-            return RANK_VALUE['9'] <= RANK_VALUE[current_rank]
-
-    # Otherwise, normal ascending check
-    return RANK_VALUE[test_rank] >= RANK_VALUE[current_rank]
+        if get_rank(card) != '8':
+            return get_rank(card)
+    return '2'  # if all 8's
 
 def check_four_in_a_row(discard_pile):
     """
-    If the top 4 cards of discard_pile have the same rank => True => burn.
+    If top 4 cards share rank => True => burn the pile.
     """
     if len(discard_pile) < 4:
         return False
     last_four = discard_pile[-4:]
-    ranks = [get_rank(card) for card in last_four]
+    ranks = [get_rank(c) for c in last_four]
     return len(set(ranks)) == 1
 
-# ========================================
-# DEALING THE CARDS
-# ========================================
-
+# ======================================
+# BUILD & DEAL
+# ======================================
 def build_deck():
     suits = ['H','D','S','C']
     deck = [rank + suit for rank in RANK_ORDER for suit in suits]
@@ -78,58 +44,36 @@ def build_deck():
 
 def deal_cards(deck, num_players):
     """
-    Each player:
-      - 3 face-down
-      - 3 face-up
-      - 3 in-hand
-    Return:
-      players = {
-        'Player 1': {
-           'hand': [...],
-           'face_up': [...],
-           'face_down': [...]
-        },
-        'Player 2': {...},
-        ...
-      }
-    and the leftover deck (unused) if any.
+    3 face-down, 3 face-up, 3 in-hand per player.
     """
     players = {}
-    cards_needed_per_player = 9  # 3 down + 3 up + 3 hand
-    total_needed = cards_needed_per_player * num_players
-    
+    needed_per_player = 9
+    total_needed = needed_per_player * num_players
     if total_needed > len(deck):
-        raise ValueError("Not enough cards to deal with the requested number of players!")
+        raise ValueError("Not enough cards to deal!")
     
     for i in range(num_players):
         pname = f"Player {i+1}"
         face_down = deck[:3]
         deck = deck[3:]
-        
         face_up = deck[:3]
         deck = deck[3:]
-        
         hand = deck[:3]
         deck = deck[3:]
-
+        
         players[pname] = {
             "face_down": face_down,
             "face_up": face_up,
             "hand": hand
         }
-    
-    return players, deck  # leftover is the draw pile (if you want one)
+    return players, deck
 
-# ========================================
-# ZONE LOGIC (HAND -> FACE UP -> FACE DOWN)
-# ========================================
-
+# ======================================
+# GAMEPLAY LOGIC
+# ======================================
 def get_current_zone(players, pname):
     """
-    Determine which zone the player should be playing from:
-    1) 'hand' if not empty
-    2) 'face_up' if hand is empty, face_up not empty
-    3) 'face_down' if both hand + face_up are empty
+    Must empty 'hand' first, then 'face_up', then 'face_down'.
     """
     if players[pname]["hand"]:
         return "hand"
@@ -138,249 +82,294 @@ def get_current_zone(players, pname):
     else:
         return "face_down"
 
-# ========================================
-# MAIN GAME LOGIC
-# ========================================
+def is_player_done(players, pname):
+    """
+    Done if all zones are empty.
+    """
+    return (not players[pname]['hand'] 
+            and not players[pname]['face_up'] 
+            and not players[pname]['face_down'])
 
+def can_play(current_rank, test_rank, ascending=True):
+    """
+    Magic cards => always playable: 2,8,9,10.
+    Otherwise:
+      if ascending => test_rank >= current_rank
+      if descending => test_rank <= current_rank
+    """
+    if test_rank in ['2','8','9','10']:
+        return True
+    if ascending:
+        return RANK_VALUE[test_rank] >= RANK_VALUE[current_rank]
+    else:
+        return RANK_VALUE[test_rank] <= RANK_VALUE[current_rank]
+
+def post_play_effects(discard_pile, just_played):
+    """
+    Check 10 => burn, or 4-of-a-kind => burn
+    Return (burned, same_player_goes_again).
+    """
+    ranks_played = [get_rank(c) for c in just_played]
+    if '10' in ranks_played:
+        print(">>> '10' => burn the pile! <<<")
+        discard_pile.clear()
+        return True, True
+    
+    if check_four_in_a_row(discard_pile):
+        print(">>> Four-of-a-kind => burn the pile! <<<")
+        discard_pile.clear()
+        return True, True
+    
+    return False, False
+
+# ======================================
+# MAIN GAME
+# ======================================
 def main_game():
-    print("Welcome, Matt, to the ascending-order card game with face-down/up mechanics and magic cards!")
+    print("Welcome to the game, with a single-turn 'lower' effect for 9!")
     num_players = int(input("How many players? (2-6) "))
-
-    # Build and deal
+    
     deck = build_deck()
     try:
         players, leftover = deal_cards(deck, num_players)
     except ValueError as e:
         print(e)
         return
-
-    # For simplicity, let's store player names in a list for turn order
+    
     turn_order = list(players.keys())
     current_idx = 0
-
+    
     discard_pile = []
     
-    # We track if the "top rank" is forced to '2' because of a '2' card
-    # Actually, we can store that after a turn is played. If a 2 is played,
-    # next time we read top_effective_rank, we'll see '2' anyway, so
-    # we handle it simply in the effect function.
-
+    # The game is normally ascending.
+    ascending_mode = True
+    
+    # We'll store a "forced_descending_for_one_turn" flag.
+    forced_descending_for_one_turn = False
+    
     while True:
         current_player = turn_order[current_idx]
         
-        # If this player has no cards in all zones => they've won
-        if (not players[current_player]["hand"] and
-            not players[current_player]["face_up"] and
-            not players[current_player]["face_down"]):
+        # Check if that player is done => they win
+        if is_player_done(players, current_player):
             print(f"\n{current_player} has no cards left! They win!")
             break
+        
+        # If forced_descending_for_one_turn is True, 
+        # we do descending for THIS turn only, then revert.
+        if forced_descending_for_one_turn:
+            print("\n(Temporary descending this turn only, due to last 9-lower!)")
+            current_ascending = False
+        else:
+            current_ascending = ascending_mode
         
         print("\n========================================")
         print(f"It's {current_player}'s turn!")
         
         zone = get_current_zone(players, current_player)
-        # Show partial info:
-        if zone == "hand":
-            print(f"Your HAND cards: {players[current_player]['hand']}")
-        elif zone == "face_up":
-            print(f"Your FACE-UP cards: {players[current_player]['face_up']}")
+        if zone == 'hand':
+            print(f"Your HAND: {players[current_player]['hand']}")
+        elif zone == 'face_up':
+            print(f"Your FACE-UP: {players[current_player]['face_up']}")
         else:
             # face_down
-            # They can't see these, but let's just mention how many
-            print(f"You have {len(players[current_player]['face_down'])} FACE-DOWN cards left (unknown!).")
+            fd_count = len(players[current_player]['face_down'])
+            print(f"You have {fd_count} FACE-DOWN cards remaining (unknown).")
         
-        # Show top-of-pile rank
-        effective_rank = top_effective_rank(discard_pile)
+        # Effective top rank
+        eff_rank = top_effective_rank(discard_pile)
         if discard_pile:
             top_card = discard_pile[-1]
-            print(f"Top of discard pile: {top_card} (effective rank: {effective_rank})")
+            print(f"Discard top: {top_card} (effective rank: {eff_rank})")
         else:
-            print("Discard pile is empty (treat top as '2').")
+            print("Discard pile empty => treat top as '2'.")
         
-        # Let the user choose multiple cards if they're the same rank.
-        # If zone == "face_down", we simulate flipping the top face-down card automatically.
-        if zone == "face_down":
-            facedown_cards = players[current_player]["face_down"]
-            if not facedown_cards:
-                print("No face-down cards to flip—strange, but skip turn.")
-                # Move to next player
+        # Show current mode
+        direction_str = "Ascending" if current_ascending else "Descending"
+        print(f"Current direction: {direction_str}")
+        
+        zone_cards = players[current_player][zone]
+        
+        # FACE-DOWN => flip top
+        if zone == 'face_down':
+            if not zone_cards:
+                print("No face-down cards => skip turn.")
                 current_idx = (current_idx + 1) % len(turn_order)
+                # Revert if forced:
+                if forced_descending_for_one_turn:
+                    forced_descending_for_one_turn = False
                 continue
             
-            # Flip the "top" face-down card (index 0 or last, your choice).
-            card_flipped = facedown_cards.pop(0)
-            print(f"You flip over: {card_flipped}")
+            flipped = zone_cards.pop(0)
+            rank_flipped = get_rank(flipped)
+            print(f"You flip: {flipped}")
             
-            # Attempt to play it using the ascending/magic rules
-            # Check if it's a 9 => ask high or low
-            rank_flipped = get_rank(card_flipped)
-            nine_as_higher = True
+            # If '9', ask high or low
             if rank_flipped == '9':
-                hi_lo = input("You've flipped a '9'. Play it as [H]igher or [L]ower? ").lower()
-                if hi_lo.startswith('l'):
-                    nine_as_higher = False
+                choice = input("[H]igher (asc) or [L]ower (desc for ONE turn)? ").lower()
+                if choice.startswith('l'):
+                    # For next player's turn after this one, revert to ascending,
+                    # but for THIS turn, it's forced descending if it wasn't already.
+                    forced_descending_for_one_turn = True
+                    print("9-lower => This turn is descending only, then revert to ascending next turn.")
+                else:
+                    # 9-higher => permanently ascending
+                    forced_descending_for_one_turn = False
+                    ascending_mode = True
+                    print("9-higher => the game remains ascending.")
             
-            if can_play(effective_rank, rank_flipped, nine_as_higher):
-                discard_pile.append(card_flipped)
-                print(f"Successfully played {card_flipped} on the pile!")
+            # Check if playable
+            if can_play(eff_rank, rank_flipped, current_ascending):
+                discard_pile.append(flipped)
+                print(f"Played {flipped} successfully.")
                 
-                # Check for burn or special effect
-                burn, same_player_go_again = post_play_effects(
-                    discard_pile, [card_flipped], current_player
-                )
-                
-                if burn:
-                    # Pile cleared
-                    # same_player_go_again = True means we do NOT move to next player
-                    if same_player_go_again:
-                        print("You burned the pile and get to go again!")
+                burned, go_again = post_play_effects(discard_pile, [flipped])
+                if burned:
+                    if go_again:
+                        print("Pile burned => same player goes again!")
+                        # Revert forced descending if we had it
+                        if forced_descending_for_one_turn:
+                            forced_descending_for_one_turn = False
                         continue
                 else:
-                    # Not burned
-                    if same_player_go_again:
-                        print("You get to go again!")
+                    if go_again:
+                        print("You go again!")
+                        # Revert forced descending if we had it
+                        if forced_descending_for_one_turn:
+                            forced_descending_for_one_turn = False
                         continue
                 
-                # Move on
+                # End turn
                 current_idx = (current_idx + 1) % len(turn_order)
             else:
-                # Not valid => must pick up if there's anything to pick
+                # pick up
+                print("Not playable => pick up pile.")
                 if discard_pile:
-                    print("That card can't be played. You pick up the whole discard pile!")
-                    players[current_player]["hand"].extend(discard_pile)
+                    players[current_player]['hand'].extend(discard_pile)
                     discard_pile.clear()
-                else:
-                    print("Discard pile empty, nothing to pick up. (Lucky!)")
                 current_idx = (current_idx + 1) % len(turn_order)
             
-            continue  # End face-down logic here
+            # After the turn ends, revert forced descending if used
+            if forced_descending_for_one_turn:
+                forced_descending_for_one_turn = False
+                ascending_mode = True  # revert back to normal ascending after this turn
+            continue
         
-        else:
-            # zone is either 'hand' or 'face_up'
-            cards_in_zone = players[current_player][zone]
-            if not cards_in_zone:
-                # No cards to play here => skip
-                print(f"No cards left in {zone} for {current_player}.")
-                current_idx = (current_idx + 1) % len(turn_order)
-                continue
-            
-            print(f"Cards available in {zone}: {cards_in_zone}")
-            chosen_str = input(
-                "Enter one or more cards of the SAME rank to play, space-separated.\n"
-                "Or press ENTER if you cannot play (then you'll pick up the pile). "
-            ).strip()
-            
-            if not chosen_str:
-                # can't / won't play => pick up
-                if discard_pile:
-                    print("You can't play. You pick up the pile!")
-                    players[current_player]["hand"].extend(discard_pile)
-                    discard_pile.clear()
-                else:
-                    print("Pile is empty, nothing to pick up.")
-                current_idx = (current_idx + 1) % len(turn_order)
-                continue
-            
-            chosen_cards = chosen_str.split()
-            # Validate
-            if any(c not in cards_in_zone for c in chosen_cards):
-                print("Invalid selection—at least one card isn't in your zone. You pick up the pile!")
-                if discard_pile:
-                    players[current_player]["hand"].extend(discard_pile)
-                    discard_pile.clear()
-                current_idx = (current_idx + 1) % len(turn_order)
-                continue
-            
-            # Check all chosen cards are the same rank
-            chosen_ranks = [get_rank(c) for c in chosen_cards]
-            if len(set(chosen_ranks)) != 1:
-                print("All chosen cards must share the SAME rank. You pick up the pile!")
-                if discard_pile:
-                    players[current_player]["hand"].extend(discard_pile)
-                    discard_pile.clear()
-                current_idx = (current_idx + 1) % len(turn_order)
-                continue
-            
-            # Possibly handle '9' choice (high vs low)
-            rank_chosen = chosen_ranks[0]
-            nine_as_higher = True
-            if rank_chosen == '9':
-                hi_lo = input("You played '9'. Use it as [H]igher or [L]ower? ").lower()
-                if hi_lo.startswith('l'):
-                    nine_as_higher = False
-            
-            # Check if we can play the chosen rank vs top rank
-            # We only need to compare once because they're all the same rank
-            if not can_play(effective_rank, rank_chosen, nine_as_higher):
-                # Must pick up
-                print("Those cards can't be played (too low). You pick up the pile!")
-                if discard_pile:
-                    players[current_player]["hand"].extend(discard_pile)
-                    discard_pile.clear()
-                current_idx = (current_idx + 1) % len(turn_order)
-                continue
-            
-            # Valid => remove them from player's zone and place on discard
-            for c in chosen_cards:
-                cards_in_zone.remove(c)
-            discard_pile.extend(chosen_cards)
-            
-            print(f"{current_player} played {chosen_cards} on the discard pile.")
-            
-            # Post-play checks for 10, four-of-a-kind, etc.
-            burn, same_player_go_again = post_play_effects(discard_pile, chosen_cards, current_player)
-            
-            if burn:
-                # Pile is cleared
-                if same_player_go_again:
-                    print("Pile burned! You go again immediately!")
-                    continue
-                else:
-                    print("Pile burned! Next player's turn.")
-                    current_idx = (current_idx + 1) % len(turn_order)
+        # HAND / FACE-UP
+        if not zone_cards:
+            print("No cards => skip turn.")
+            current_idx = (current_idx + 1) % len(turn_order)
+            # Revert forced descending if used
+            if forced_descending_for_one_turn:
+                forced_descending_for_one_turn = False
+                ascending_mode = True
+            continue
+        
+        print(f"Cards in {zone}: {zone_cards}")
+        inp = input("Enter one+ cards of SAME rank or press ENTER to pass: ").strip()
+        
+        if not inp:
+            # pass => pick up
+            if discard_pile:
+                print("You pick up the discard pile.")
+                players[current_player]['hand'].extend(discard_pile)
+                discard_pile.clear()
             else:
-                if same_player_go_again:
-                    print("You get to go again!")  # This might not happen with current rules unless you want another effect
-                    continue
-                else:
-                    current_idx = (current_idx + 1) % len(turn_order)
-
+                print("Pile empty => nothing to pick up.")
+            current_idx = (current_idx + 1) % len(turn_order)
+            if forced_descending_for_one_turn:
+                forced_descending_for_one_turn = False
+                ascending_mode = True
+            continue
+        
+        chosen_cards = inp.split()
+        
+        # Validate
+        if any(c not in zone_cards for c in chosen_cards):
+            print("Invalid choice => pick up pile.")
+            if discard_pile:
+                players[current_player]['hand'].extend(discard_pile)
+                discard_pile.clear()
+            current_idx = (current_idx + 1) % len(turn_order)
+            if forced_descending_for_one_turn:
+                forced_descending_for_one_turn = False
+                ascending_mode = True
+            continue
+        
+        chosen_ranks = [get_rank(c) for c in chosen_cards]
+        if len(set(chosen_ranks)) != 1:
+            print("All chosen cards must share the SAME rank => pick up pile.")
+            if discard_pile:
+                players[current_player]['hand'].extend(discard_pile)
+                discard_pile.clear()
+            current_idx = (current_idx + 1) % len(turn_order)
+            if forced_descending_for_one_turn:
+                forced_descending_for_one_turn = False
+                ascending_mode = True
+            continue
+        
+        rank_chosen = chosen_ranks[0]
+        
+        # If '9' => ask higher/lower
+        if rank_chosen == '9':
+            choice = input("[H]igher => remain ascending, [L]ower => descending FOR ONE TURN? ").lower()
+            if choice.startswith('l'):
+                forced_descending_for_one_turn = True
+                print("9-lower => descending this turn only; then revert to ascending.")
+            else:
+                forced_descending_for_one_turn = False
+                ascending_mode = True
+                print("9-higher => remain ascending.")
+        
+        if not can_play(eff_rank, rank_chosen, current_ascending):
+            print("Not playable => pick up pile.")
+            if discard_pile:
+                players[current_player]['hand'].extend(discard_pile)
+                discard_pile.clear()
+            current_idx = (current_idx + 1) % len(turn_order)
+            if forced_descending_for_one_turn:
+                forced_descending_for_one_turn = False
+                ascending_mode = True
+            continue
+        
+        # valid => remove from zone, place on discard
+        for c in chosen_cards:
+            zone_cards.remove(c)
+        discard_pile.extend(chosen_cards)
+        
+        print(f"{current_player} played {chosen_cards}!")
+        
+        # post-play
+        burned, go_again = post_play_effects(discard_pile, chosen_cards)
+        if burned:
+            if go_again:
+                print("Pile burned => same player goes again!")
+                # revert forced desc if used
+                if forced_descending_for_one_turn:
+                    forced_descending_for_one_turn = False
+                    ascending_mode = True
+                continue
+            else:
+                print("Pile burned => next player's turn.")
+                current_idx = (current_idx + 1) % len(turn_order)
+        else:
+            if go_again:
+                print("Magic => you go again!")
+                # revert forced desc if used
+                if forced_descending_for_one_turn:
+                    forced_descending_for_one_turn = False
+                    ascending_mode = True
+                continue
+            else:
+                current_idx = (current_idx + 1) % len(turn_order)
+        
+        # after turn ends, revert forced descending if used
+        if forced_descending_for_one_turn:
+            forced_descending_for_one_turn = False
+            ascending_mode = True
+    
     print("\nGame over. Thanks for playing!")
 
-
-def post_play_effects(discard_pile, just_played, player_name):
-    """
-    Applies the 'magic' rules:
-      - If a 10 is played, burn the pile
-      - If four of a kind (top 4 same rank), burn the pile
-      - If a 2 is played, next compare rank is '2' automatically (handled by top_effective_rank logic)
-      - If the pile is burned, the player goes again (don't move to next).
-      - 9's effect is handled pre-check (the user chooses high/low).
-      - 8 is invisible, so no direct effect besides skipping rank checks.
-
-    Return: (burned: bool, same_player_go_again: bool)
-
-    'same_player_go_again' is True if the pile gets burned by that player's action.
-    """
-    # Check for 10
-    ranks_just_played = [get_rank(c) for c in just_played]
-    if '10' in ranks_just_played:
-        print("A '10' was played => burn the pile!")
-        discard_pile.clear()
-        return True, True  # pile burned, same player again
-
-    # Check for four of a kind
-    if check_four_in_a_row(discard_pile):
-        print("Four-of-a-kind on top => burn the pile!")
-        discard_pile.clear()
-        return True, True
-    
-    # If no burn, return
-    return False, False
-
-# ========================================
-# RUN
-# ========================================
 
 if __name__ == "__main__":
     main_game()
