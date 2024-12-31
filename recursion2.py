@@ -1,10 +1,9 @@
 def get_to_zero(number, count):
     print(number, count)
     if number > 0:
-        number = number - 1
         count = count + 1
         # print("count",count, "number", number)
-        get_to_zero(number, count)
+        get_to_zero(number -1, count)
     else:
         print(count)
         return count
