@@ -25,7 +25,7 @@ import os
 
 # ------------------ Hyperparameters (Hardcoded) ------------------
 TEXT_FILE = "shake.txt"  # Path to the text file containing Shakespeare's works
-EPOCHS = 1  # Number of training epochs
+EPOCHS = 30  # Number of training epochs
 BATCH_SIZE = 64  # Batch size for training (fixed for stateful RNN)
 SEQ_LENGTH = 50  # Length of each training sequence
 EMBEDDING_DIM = 128  # Dimension of the embedding layer
@@ -42,7 +42,7 @@ def main():
     # Read the entire text file into a single string
     with open(TEXT_FILE, 'r', encoding='utf-8') as f:
         text = f.read()
-    text = text[:5000]  # For quick testing: use only the first 5000 characters; remove for full training
+    #text = text[:5000]  # For quick testing: use only the first 5000 characters; remove for full training
 
     # Convert text to lowercase for consistency
     text = text.lower()
